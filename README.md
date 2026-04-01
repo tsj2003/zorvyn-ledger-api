@@ -20,9 +20,9 @@ This spins up the Postgres 16 database, creates all tables, starts the FastAPI a
 
 | Role | Email | Password | Access Level |
 |---|---|---|---|
-| **Admin** | `admin@zorvyn.local` | `password123` | Full access |
-| **Analyst** | `analyst@zorvyn.local` | `password123` | Read-only records + Dashboard |
-| **Viewer** | `viewer@zorvyn.local` | `password123` | Dashboard only |
+| **Admin** | `admin@zorvyn.dev` | `password123` | Full access |
+| **Analyst** | `analyst@zorvyn.dev` | `password123` | Read-only records + Dashboard |
+| **Viewer** | `viewer@zorvyn.dev` | `password123` | Dashboard only |
 
 **4. Run the Test Suite:**
 ```bash
@@ -54,6 +54,14 @@ Instead of relying on fragile UI checks or complex middleware, role enforcement 
 
 Dashboard metrics (e.g., total income, category breakdowns) are calculated using native SQLAlchemy aggregate functions (`func.sum`, `extract('month')`) directly in the PostgreSQL database, rather than fetching thousands of rows into Python memory.
 
+### 5. Rate Limiting
+
+All endpoints are globally rate-limited to **60 requests/minute per IP** via `slowapi`. Sensitive endpoints have stricter per-route limits:
+- `POST /auth/login` — **10/minute** (brute-force protection)
+- `POST /auth/register` — **5/minute** (spam prevention)
+
+Exceeding the limit returns `429 Too Many Requests` with a `Retry-After` header.
+
 ---
 
 ## 🛠️ Technology Stack
@@ -65,6 +73,7 @@ Dashboard metrics (e.g., total income, category breakdowns) are calculated using
 | **ORM** | SQLAlchemy 2.0 (Asyncpg driver) |
 | **Migrations** | Alembic |
 | **Authentication** | JWT (PyJWT) + bcrypt |
+| **Rate Limiting** | slowapi (in-memory, per-IP) |
 | **Testing** | Pytest + HTTPX |
 | **Containerization** | Docker + Docker Compose |
 
@@ -81,6 +90,7 @@ zorvyn/
 │   ├── schemas.py       # Pydantic validation schemas
 │   ├── security.py      # JWT encoding and password hashing
 │   ├── rbac.py          # Role-based access control dependencies
+│   ├── rate_limit.py    # slowapi limiter instance
 │   ├── config.py        # Pydantic Settings (env vars)
 │   ├── database.py      # Async engine + session factory
 │   └── main.py          # App entrypoint, lifespan, CORS

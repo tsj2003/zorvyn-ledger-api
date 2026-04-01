@@ -10,6 +10,7 @@ from app.database import engine, async_session_factory
 from app.models import Base, User, FinancialRecord, UserRole, RecordType
 from app.security import hash_password
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 
 SEED_USERS = [
     {"email": "admin@zorvyn.dev", "username": "admin", "password": "password123", "role": UserRole.ADMIN},
@@ -23,7 +24,27 @@ EXPENSE_CATEGORIES = ["rent", "utilities", "groceries", "software", "marketing",
 RECORD_COUNT = 150
 
 
+async def wait_for_db(max_retries=30, delay=2):
+    """Wait for database to be ready (important for cloud deployments)."""
+    for attempt in range(max_retries):
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(select(1))
+            print(f"✓ Database connected after {attempt + 1} attempt(s)")
+            return True
+        except OperationalError:
+            if attempt < max_retries - 1:
+                print(f"  Waiting for database... ({attempt + 1}/{max_retries})")
+                await asyncio.sleep(delay)
+            else:
+                raise
+    return False
+
+
 async def seed():
+    # Wait for database to be ready
+    await wait_for_db()
+    
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

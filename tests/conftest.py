@@ -6,7 +6,6 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from app.config import get_settings
 from app.database import get_db
 from app.main import app
 from app.models import Base, UserRole
@@ -15,8 +14,9 @@ from app.models import User
 import uuid
 
 
-# use the same DB but isolate via transactions
-test_engine = create_async_engine(get_settings().DATABASE_URL, echo=False)
+# Use SQLite for tests - more portable and doesn't require running Postgres
+TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 test_session_factory = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
 
 

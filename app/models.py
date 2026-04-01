@@ -2,10 +2,10 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
     Boolean, CheckConstraint, Column, Date, DateTime, Enum as SAEnum,
-    ForeignKey, Index, Integer, Numeric, SmallInteger, String, Text,
+    ForeignKey, Index, Integer, JSON, Numeric, SmallInteger, String, Text,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
 import enum
 
@@ -90,8 +90,8 @@ class RecordAuditLog(Base):
     record_id = Column(UUID(as_uuid=True), ForeignKey("financial_records.id"), nullable=False)
     action = Column(SAEnum(AuditAction, name="audit_action_enum"), nullable=False)
     changed_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    old_payload = Column(JSONB, nullable=True)
-    new_payload = Column(JSONB, nullable=True)
+    old_payload = Column(JSON, nullable=True)
+    new_payload = Column(JSON, nullable=True)
     changed_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
 
     __table_args__ = (
@@ -106,5 +106,5 @@ class IdempotencyKey(Base):
     key = Column(String(255), primary_key=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     response_code = Column(SmallInteger, nullable=False)
-    response_body = Column(JSONB, nullable=False)
+    response_body = Column(JSON, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)

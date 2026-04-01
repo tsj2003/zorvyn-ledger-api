@@ -146,8 +146,21 @@ async def update_record(
     if not target:
         raise ValueError("Record not found")
 
-    # optimistic concurrency: reject if stale
-    if target.updated_at != expected_updated_at:
+    # optimistic concurrency: reject if stale (with tolerance for db precision differences)
+    # SQLite and PostgreSQL have different timestamp precision and timezone handling
+    def _normalize_ts(ts):
+        if ts is None:
+            return None
+        # Ensure both timestamps are timezone-aware for fair comparison
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        # Truncate to milliseconds (remove microseconds) to handle db precision differences
+        return ts.replace(microsecond=(ts.microsecond // 1000) * 1000)
+    
+    db_ts = _normalize_ts(target.updated_at)
+    expected_ts = _normalize_ts(expected_updated_at)
+    
+    if db_ts != expected_ts:
         raise ConflictError("Record was modified by another request — refresh and retry")
 
     old_snapshot = _record_to_dict(target)

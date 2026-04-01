@@ -31,6 +31,23 @@ make test
 
 ---
 
+## Architectural Decisions & Trade-offs
+
+| Decision | Implementation | Rationale |
+|----------|---------------|-----------|
+| **Framework** | FastAPI (Python 3.12) | Native async support, automatic OpenAPI docs, Pydantic validation catches invalid input before database touch |
+| **Database** | PostgreSQL 16 + SQLAlchemy 2.0 async | Currency stored as `NUMERIC(15,2)` instead of float to eliminate IEEE 754 precision errors. All amounts serialized as strings in JSON responses. |
+| **Authentication** | JWT (HS256) + bcrypt | Single access token model (deliberate simplification). In production, would pair with short-lived tokens + refresh flow. |
+| **Access Control** | RBAC via FastAPI dependency injection | `Depends(require_role("admin"))` rejects unauthorized requests before route handler executes — no middleware bypass possible |
+| **Concurrency** | Optimistic locking via `expected_updated_at` | Two admins updating same record simultaneously → second request fails with 409 Conflict instead of silent overwrite |
+| **Idempotency** | `POST /records` accepts `Idempotency-Key` header | Duplicate submissions within 24 hours return cached response without creating duplicate transactions — critical for financial systems with network retries |
+| **Audit Trail** | Immutable `record_audit_logs` table | Every UPDATE/DELETE inserts row with full JSON snapshots of old/new payloads, user ID, timestamp. Append-only, immutable. |
+| **Soft Deletes** | `deleted_at` timestamp with partial index | Records never hard-deleted. Partial index `WHERE deleted_at IS NULL` ensures active queries skip tombstones without scanning them. |
+| **Rate Limiting** | slowapi | 60 req/min global, 10/min on login (brute-force), 5/min on registration (spam prevention) |
+| **Testing** | 80 integration tests | pytest + httpx AsyncClient covering CRUD, RBAC, edge cases (zero/negative amounts, stale concurrency, double-delete), decimal precision |
+
+---
+
 ## Architecture & Engineering Decisions
 
 This backend was designed with the strict data integrity and security requirements of a financial system in mind.

@@ -31,6 +31,25 @@ make test
 
 ---
 
+## Deploy to Render (Live Demo)
+
+**1. Connect GitHub repo to Render:**
+- Go to [dashboard.render.com](https://dashboard.render.com) → **New** → **Web Service**
+- Connect `tsj2003/zorvyn-ledger-api` repository
+- Render auto-detects `render.yaml` and provisions PostgreSQL + web service
+
+**2. After deployment, seed the database:**
+- Go to your service → **Shell** tab
+- Run: `python -m scripts.seed_db`
+
+**3. Access your live API:**
+- Swagger UI: `https://zorvyn-ledger-api.onrender.com/docs`
+- Health: `https://zorvyn-ledger-api.onrender.com/health`
+
+Use the seeded credentials from the table above to log in.
+
+---
+
 ## Architectural Decisions & Trade-offs
 
 | Decision | Implementation | Rationale |

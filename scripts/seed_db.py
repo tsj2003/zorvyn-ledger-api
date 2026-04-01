@@ -4,13 +4,14 @@ Run: python -m scripts.seed_db
 """
 import asyncio
 import random
+import socket
 from datetime import date, timedelta, timezone, datetime
 from decimal import Decimal
 from app.database import engine, async_session_factory
 from app.models import Base, User, FinancialRecord, UserRole, RecordType
 from app.security import hash_password
 from sqlalchemy import select
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, DBAPIError
 
 SEED_USERS = [
     {"email": "admin@zorvyn.dev", "username": "admin", "password": "password123", "role": UserRole.ADMIN},
@@ -32,9 +33,9 @@ async def wait_for_db(max_retries=30, delay=2):
                 await conn.execute(select(1))
             print(f"✓ Database connected after {attempt + 1} attempt(s)")
             return True
-        except OperationalError:
+        except (OperationalError, DBAPIError, socket.gaierror, OSError, ConnectionRefusedError) as e:
             if attempt < max_retries - 1:
-                print(f"  Waiting for database... ({attempt + 1}/{max_retries})")
+                print(f"  Waiting for database... ({attempt + 1}/{max_retries}) - {type(e).__name__}")
                 await asyncio.sleep(delay)
             else:
                 raise

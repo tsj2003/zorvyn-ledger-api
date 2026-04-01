@@ -19,6 +19,11 @@ class Settings(BaseSettings):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
         elif url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        
+        # Add SSL require for external Render databases (not internal)
+        if "render.com" in url and "?ssl=" not in url:
+            url = url + "?ssl=require"
+        
         return url
 
     @property

@@ -2,7 +2,7 @@
 
 A production-grade backend service for managing financial records, role-based access control (RBAC), and dashboard aggregations. Built with FastAPI and async PostgreSQL.
 
-## 🚀 Quick Start (Reviewer Experience)
+## Quick Start (Reviewer Experience)
 
 I respect your time. This project includes a seed script that automatically populates the database with users and 150 randomized financial records spanning the last 6 months so you can instantly test the dashboard aggregations.
 
@@ -31,7 +31,7 @@ make test
 
 ---
 
-## 🏗️ Architecture & Engineering Decisions
+## Architecture & Engineering Decisions
 
 This backend was designed with the strict data integrity and security requirements of a financial system in mind.
 
@@ -64,7 +64,7 @@ Exceeding the limit returns `429 Too Many Requests` with a `Retry-After` header.
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 | Layer | Technology |
 |---|---|
@@ -79,7 +79,7 @@ Exceeding the limit returns `429 Too Many Requests` with a `Retry-After` header.
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 zorvyn/
@@ -105,7 +105,7 @@ zorvyn/
 
 ---
 
-## 📡 API Reference
+## API Reference
 
 ### Auth (Public)
 | Method | Endpoint | Description |
@@ -144,7 +144,7 @@ zorvyn/
 
 ---
 
-## 🗄️ Database Schema
+## Database Schema
 
 ### Tables
 - **`users`** — id (UUID), email, username, hashed_password, role (enum), is_active, timestamps
@@ -160,7 +160,7 @@ zorvyn/
 
 ---
 
-## ⚙️ Makefile Commands
+## Makefile Commands
 
 ```bash
 make up        # Build and start everything (Postgres + app + seed)
@@ -174,7 +174,7 @@ make clean     # Stop containers AND delete volumes (fresh start)
 
 ---
 
-## 📝 Assumptions & Tradeoffs
+## Assumptions & Tradeoffs
 
 1. **Single JWT access token** — No refresh token complexity. In production, pair with refresh tokens or use short-lived tokens + session store.
 2. **Table auto-creation on startup** — `Base.metadata.create_all` in the lifespan for dev convenience. Alembic migrations are configured for production use.
@@ -184,7 +184,7 @@ make clean     # Stop containers AND delete volumes (fresh start)
 
 ---
 
-## 🔐 Environment Variables
+## Environment Variables
 
 | Variable | Default | Description |
 |---|---|---|

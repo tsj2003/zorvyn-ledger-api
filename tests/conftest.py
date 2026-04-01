@@ -1,3 +1,6 @@
+import os
+os.environ["RATE_LIMIT_ENABLED"] = "false"
+
 import asyncio
 import pytest
 import pytest_asyncio

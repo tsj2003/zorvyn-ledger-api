@@ -5,6 +5,7 @@ Run: python -m scripts.seed_db
 import asyncio
 import random
 import socket
+import subprocess
 from datetime import date, timedelta, timezone, datetime
 from decimal import Decimal
 from app.database import engine, async_session_factory
@@ -25,7 +26,7 @@ EXPENSE_CATEGORIES = ["rent", "utilities", "groceries", "software", "marketing",
 RECORD_COUNT = 150
 
 
-async def wait_for_db(max_retries=30, delay=2):
+async def wait_for_db(max_retries=30, delay=5):
     """Wait for database to be ready (important for cloud deployments)."""
     for attempt in range(max_retries):
         try:

@@ -22,3 +22,8 @@ services:
         value: 60
       - key: PYTHON_VERSION
         value: "3.12.0"
+      - key: DATABASE_URL_INTERNAL
+        fromDatabase:
+          name: zorvyn-db
+          property: host
+        # Note: After first deploy, wait 2-3 minutes then run seed manually in Render Shell

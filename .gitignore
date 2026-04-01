@@ -12,3 +12,6 @@ __pycache__/
 
 # Docker
 pgdata/
+master_context.md
+*.egg-info/
+.pytest_cache/

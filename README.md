@@ -1,112 +1,146 @@
-# Finance Data Processing & Access Control Backend
+# Zorvyn — Finance Data Processing & Access Control
 
-A production-grade FastAPI backend for managing financial records with role-based access control, immutable audit trails, and idempotent transaction creation.
+A production-grade backend service for managing financial records, role-based access control (RBAC), and dashboard aggregations. Built with FastAPI and async PostgreSQL.
 
-## Quick Start
+## 🚀 Quick Start (Reviewer Experience)
 
+I respect your time. This project includes a seed script that automatically populates the database with users and 150 randomized financial records spanning the last 6 months so you can instantly test the dashboard aggregations.
+
+**1. Start the system (requires Docker):**
 ```bash
-# one command — spins up Postgres + seeds 3 users + 150 records + starts API
 make up
+```
+This spins up the Postgres 16 database, creates all tables, starts the FastAPI application, and injects the seed data.
 
-# then open Swagger UI
-open http://localhost:8000/docs
+**2. Access the API & Documentation:**
+- **Swagger UI / OpenAPI**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+
+**3. Seeded Test Credentials:**
+
+| Role | Email | Password | Access Level |
+|---|---|---|---|
+| **Admin** | `admin@zorvyn.local` | `password123` | Full access |
+| **Analyst** | `analyst@zorvyn.local` | `password123` | Read-only records + Dashboard |
+| **Viewer** | `viewer@zorvyn.local` | `password123` | Dashboard only |
+
+**4. Run the Test Suite:**
+```bash
+make test
 ```
 
-### Seeded Credentials
+---
 
-| Role | Email | Password |
-|---|---|---|
-| **Admin** | admin@zorvyn.io | admin1234 |
-| **Analyst** | analyst@zorvyn.io | analyst1234 |
-| **Viewer** | viewer@zorvyn.io | viewer1234 |
+## 🏗️ Architecture & Engineering Decisions
 
-## Architecture
+This backend was designed with the strict data integrity and security requirements of a financial system in mind.
+
+### 1. Ironclad RBAC at the Dependency Layer
+
+Instead of relying on fragile UI checks or complex middleware, role enforcement is strictly handled via FastAPI Dependency Injection (`Depends(require_role("admin"))`). If a Viewer attempts to hit `DELETE /records/{id}`, the request is rejected with a `403 Forbidden` before it ever reaches the route handler or database session.
+
+### 2. Financial Data Integrity
+
+- **No Floating-Point Math**: Currency is stored using PostgreSQL's native `NUMERIC(15,2)` to prevent IEEE 754 precision loss. Pydantic handles the serialization to strings for the JSON responses.
+- **Idempotency on Creation**: The `POST /records` endpoint requires an `Idempotency-Key` header. This prevents duplicate transactions if a client retries a request due to network instability.
+
+### 3. Concurrency & Auditability
+
+- **Optimistic Locking**: Concurrent updates to the same financial record are prevented using an `updated_at` version check. If two admins update the same record simultaneously, the second request safely fails with a `409 Conflict`.
+- **Immutable Audit Trail**: Financial systems require strict compliance. Every `UPDATE` or `DELETE` triggers a database-level insertion into a `record_audit_logs` table, storing the exact `old_payload` and `new_payload` alongside the user ID.
+- **Soft Deletes**: Records are never hard-deleted. They receive a `deleted_at` timestamp. Partial database indexes (`WHERE deleted_at IS NULL`) ensure that live queries and dashboard aggregations remain blazingly fast without scanning tombstone data.
+
+### 4. High-Performance Aggregations
+
+Dashboard metrics (e.g., total income, category breakdowns) are calculated using native SQLAlchemy aggregate functions (`func.sum`, `extract('month')`) directly in the PostgreSQL database, rather than fetching thousands of rows into Python memory.
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technology |
+|---|---|
+| **Framework** | FastAPI (Python 3.12) |
+| **Database** | PostgreSQL 16 |
+| **ORM** | SQLAlchemy 2.0 (Asyncpg driver) |
+| **Migrations** | Alembic |
+| **Authentication** | JWT (PyJWT) + bcrypt |
+| **Testing** | Pytest + HTTPX |
+| **Containerization** | Docker + Docker Compose |
+
+---
+
+## 📂 Project Structure
 
 ```
-app/
-├── main.py              ← FastAPI app, lifespan, CORS, exception handlers
-├── config.py            ← Pydantic Settings (env vars)
-├── database.py          ← Async SQLAlchemy engine + session dependency
-├── models.py            ← 4 ORM models with indexes and constraints
-├── schemas.py           ← Pydantic request/response schemas
-├── security.py          ← JWT + bcrypt utilities
-├── rbac.py              ← Role enforcement via dependency injection
-├── routes/              ← API endpoints (auth, users, records, dashboard, health)
-└── services/            ← Business logic (user_ops, record_ops, dashboard_ops)
+zorvyn/
+├── app/
+│   ├── routes/          # FastAPI endpoints (auth, users, records, dashboard, health)
+│   ├── services/        # Core business logic, idempotency, and DB queries
+│   ├── models.py        # SQLAlchemy ORM models (4 tables)
+│   ├── schemas.py       # Pydantic validation schemas
+│   ├── security.py      # JWT encoding and password hashing
+│   ├── rbac.py          # Role-based access control dependencies
+│   ├── config.py        # Pydantic Settings (env vars)
+│   ├── database.py      # Async engine + session factory
+│   └── main.py          # App entrypoint, lifespan, CORS
+├── scripts/
+│   └── seed_db.py       # Database seeding automation
+├── tests/               # Pytest suite with fixtures per role
+├── alembic/             # Database migration configuration
+├── Makefile             # Developer workflow commands
+├── Dockerfile           # Python 3.12 container
+└── docker-compose.yml   # Postgres + app orchestration
 ```
 
-## Tech Stack
+---
 
-- **Framework**: FastAPI (async)
-- **Database**: PostgreSQL 16 via SQLAlchemy 2.0 (asyncpg driver)
-- **Auth**: JWT (HS256) with bcrypt password hashing
-- **Containerization**: Docker + Docker Compose
-- **Testing**: pytest + httpx AsyncClient
-
-## API Endpoints
+## 📡 API Reference
 
 ### Auth (Public)
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/auth/register` | Create a new user (default: viewer role) |
-| POST | `/auth/login` | Get JWT access token |
+| `POST` | `/auth/register` | Create a new user (default: viewer) |
+| `POST` | `/auth/login` | Get JWT access token |
 
 ### Users (Admin only)
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/users` | List all users (filterable by role, status) |
-| GET | `/users/{id}` | Get single user |
-| PATCH | `/users/{id}` | Update role or active status |
+| `GET` | `/users` | List all users (filterable by role, status) |
+| `GET` | `/users/{id}` | Get single user |
+| `PATCH` | `/users/{id}` | Update role or active status |
 
 ### Financial Records (Role-gated)
-| Method | Endpoint | Minimum Role | Description |
+| Method | Endpoint | Min. Role | Description |
 |---|---|---|---|
-| POST | `/records` | Admin | Create record (supports `Idempotency-Key` header) |
-| GET | `/records` | Analyst | List with filters + pagination |
-| GET | `/records/{id}` | Analyst | Get single record |
-| PATCH | `/records/{id}` | Admin | Update (optimistic concurrency via `expected_updated_at`) |
-| DELETE | `/records/{id}` | Admin | Soft delete |
+| `POST` | `/records` | Admin | Create record (requires `Idempotency-Key` header) |
+| `GET` | `/records` | Analyst | List with filters + pagination |
+| `GET` | `/records/{id}` | Analyst | Get single record |
+| `PATCH` | `/records/{id}` | Admin | Update (optimistic concurrency via `expected_updated_at`) |
+| `DELETE` | `/records/{id}` | Admin | Soft delete |
 
 ### Dashboard (Viewer+)
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/dashboard/summary` | Total income, expenses, net balance, record count |
-| GET | `/dashboard/category-breakdown` | Totals grouped by category and type |
-| GET | `/dashboard/trends` | Monthly income vs expenses |
-| GET | `/dashboard/recent-activity` | Last N records created |
+| `GET` | `/dashboard/summary` | Total income, expenses, net balance, record count |
+| `GET` | `/dashboard/category-breakdown` | Totals grouped by category and type |
+| `GET` | `/dashboard/trends` | Monthly income vs expenses |
+| `GET` | `/dashboard/recent-activity` | Last N records created |
 
 ### Health (Public)
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/health` | DB connectivity check |
+| `GET` | `/health` | Database connectivity check |
 
-## Key Design Decisions
+---
 
-### 1. Currency as NUMERIC(15,2) — Not Float
-Floating-point arithmetic introduces rounding errors in financial calculations. All amounts are stored as `NUMERIC(15,2)` in Postgres and `Decimal` in Python. Pydantic serializes them as strings in JSON to prevent IEEE 754 precision loss on the wire.
-
-### 2. Idempotency Keys for Record Creation
-Duplicate POST prevention via an `Idempotency-Key` header. If the same key is sent within 24 hours, the original `201 Created` response is returned without creating a duplicate record. Keys are stored in the `idempotency_keys` table and purged on app startup.
-
-### 3. Immutable Audit Trail
-Every `CREATE`, `UPDATE`, and `DELETE` on financial records writes a row to `record_audit_logs` containing the old payload, new payload, who made the change, and when. This is separate from `updated_at` — it creates a full, queryable history of what changed and who did it.
-
-### 4. Optimistic Concurrency Control
-Updates require an `expected_updated_at` timestamp. If the record was modified by another request between read and write, the server returns `409 Conflict` instead of silently overwriting.
-
-### 5. Soft Deletes
-Financial records are never physically deleted. A `deleted_at` timestamp is set, and all queries filter `WHERE deleted_at IS NULL`. A partial index on this column ensures active-record queries don't scan tombstones.
-
-### 6. RBAC via Dependency Injection
-Roles (admin > analyst > viewer) are enforced at the API boundary using FastAPI's `Depends()` system. The `require_role()` factory returns a dependency that checks the caller's JWT-derived role against a hierarchy. No middleware bypass is possible.
-
-## Database Schema
+## 🗄️ Database Schema
 
 ### Tables
-- **users** — id, email, username, hashed_password, role, is_active, timestamps
-- **financial_records** — id, amount (NUMERIC), type, category, description, date, created_by (FK), timestamps, deleted_at
-- **record_audit_logs** — id, record_id (FK), action, changed_by (FK), old_payload (JSONB), new_payload (JSONB), changed_at
-- **idempotency_keys** — key (PK), user_id (FK), response_code, response_body (JSONB), created_at
+- **`users`** — id (UUID), email, username, hashed_password, role (enum), is_active, timestamps
+- **`financial_records`** — id (UUID), amount (`NUMERIC(15,2)`), type (enum), category, description, date, created_by (FK), timestamps, `deleted_at`
+- **`record_audit_logs`** — id (UUID), record_id (FK), action (enum), changed_by (FK), `old_payload` (JSONB), `new_payload` (JSONB), changed_at
+- **`idempotency_keys`** — key (PK), user_id (FK), response_code, response_body (JSONB), created_at (24h TTL)
 
 ### Performance Indexes
 - `ix_records_type_date` — composite on `(record_type, record_date)` for dashboard aggregations
@@ -114,7 +148,9 @@ Roles (admin > analyst > viewer) are enforced at the API boundary using FastAPI'
 - `ix_records_active` — partial index `WHERE deleted_at IS NULL` to skip tombstones
 - `ix_audit_record_id` — audit history lookups per record
 
-## Makefile Commands
+---
+
+## ⚙️ Makefile Commands
 
 ```bash
 make up        # Build and start everything (Postgres + app + seed)
@@ -126,23 +162,19 @@ make test      # Run pytest inside container
 make clean     # Stop containers AND delete volumes (fresh start)
 ```
 
-## Running Tests
+---
 
-```bash
-make test
-# or directly:
-docker compose exec app pytest tests/ -v --tb=short
-```
+## 📝 Assumptions & Tradeoffs
 
-## Assumptions & Tradeoffs
+1. **Single JWT access token** — No refresh token complexity. In production, pair with refresh tokens or use short-lived tokens + session store.
+2. **Table auto-creation on startup** — `Base.metadata.create_all` in the lifespan for dev convenience. Alembic migrations are configured for production use.
+3. **Idempotent seed script** — Checks for existing admin user before inserting. Safe to re-run.
+4. **CORS allows all origins** — Appropriate for local development. Must be locked down in production.
+5. **Viewer access is dashboard-only** — Viewers cannot list individual financial records. Only aggregated dashboard data is accessible.
 
-1. **No refresh tokens**: Single JWT access token for simplicity. In production, pair with refresh tokens or use short-lived tokens + session store.
-2. **Table auto-creation on startup**: `Base.metadata.create_all` in lifespan for dev convenience. Alembic migrations are set up for production use.
-3. **Seed script is idempotent**: Checks for existing `admin@zorvyn.io` before inserting. Safe to re-run.
-4. **CORS allows all origins**: Appropriate for local dev. Lock down in production.
-5. **Viewer can only access dashboard**: Viewers cannot list individual financial records — only aggregated dashboard data. Analysts can read records. Admins have full access.
+---
 
-## Environment Variables
+## 🔐 Environment Variables
 
 | Variable | Default | Description |
 |---|---|---|

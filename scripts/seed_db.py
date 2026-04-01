@@ -12,9 +12,9 @@ from app.security import hash_password
 from sqlalchemy import select
 
 SEED_USERS = [
-    {"email": "admin@zorvyn.io", "username": "admin", "password": "admin1234", "role": UserRole.ADMIN},
-    {"email": "analyst@zorvyn.io", "username": "analyst", "password": "analyst1234", "role": UserRole.ANALYST},
-    {"email": "viewer@zorvyn.io", "username": "viewer", "password": "viewer1234", "role": UserRole.VIEWER},
+    {"email": "admin@zorvyn.local", "username": "admin", "password": "password123", "role": UserRole.ADMIN},
+    {"email": "analyst@zorvyn.local", "username": "analyst", "password": "password123", "role": UserRole.ANALYST},
+    {"email": "viewer@zorvyn.local", "username": "viewer", "password": "password123", "role": UserRole.VIEWER},
 ]
 
 INCOME_CATEGORIES = ["salary", "consulting", "freelance", "investments", "refunds"]
@@ -29,7 +29,7 @@ async def seed():
 
     async with async_session_factory() as session:
         # skip if already seeded
-        existing = await session.execute(select(User).where(User.email == "admin@zorvyn.io"))
+        existing = await session.execute(select(User).where(User.email == "admin@zorvyn.local"))
         if existing.scalar_one_or_none():
             print("\n⚠ Database already seeded — skipping.\n")
             return
